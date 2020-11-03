@@ -5,6 +5,7 @@
     git clone 克隆代码
     git add . 添加代码修改到暂存区
     git commit -m 'xxx' 提交代码并且添加注释到本地git
+    git pull 拉代码
     git push 推代码
     第一次使用需要添加信息，名称和邮箱随便填写
     git config --global user.name "xxxx"
