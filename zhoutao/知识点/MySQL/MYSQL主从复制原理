@@ -1,4 +1,52 @@
 ### 主从复制的原理
+1. 依赖于binlog，binlog会记录除了select和show命令的其他命令
+2. 从库把主库的binlog记录拿过来
+3. 从库解析binlog文件，在relay-log中重做一遍
 
+需要三个线程  
+1. 主库binlog输出线程：每当有一个从库连接主库，主库创建一个线程，发送binlog日志到从库
+2. 从库I/O线程：从库通过I/O获取到binlog文件之后拷贝到本地文件
+3. 从库SQL线程：读取I/O线程获取的信息到relay log文件中；relay log：master和slave的中继文件
 
 ### bin-log日志的操作
+
+问题场景：当数据库被删除了/需要在从节点重新生成一个库
+1. 查看是否有dump文件，如果有先恢复到dump文件备份的时间点
+2. 使用binlog进行剩下的数据恢复
+
+#### mysqldump的操作
+
+1. 如何备份  
+在服务器上：mysqldump -uroot -proot -F -B database > /root/databasetmp.sql   -F：刷新binlog日志，-B：在生成的备份文件中指定数据库，使用时就不需要指定
+2. 如何还原
+在MySQL命令行上：如果已经指定了-B参数，不用use database，直接source /root/databasetmp.sql；否则需要先指定数据库
+
+#### binlog的操作
+
+##### 一、开启binlog
+mysql默认不开启bin-log，需要手动开启，在/etc/my.cnf文件上添加
+1. server_id = 1:指定服务id
+2. log_bin = mysql-bin：指定生成的binlog的前缀，后续生成的文件为mysql-bin.000001 
+3. binlog_format = ROW:  
+    1. row:记录每行实际数据的变更，准确性强，能准确复制数据的变更，但是日志文件较大
+    2. statement:记录修改的sql语句，日志文件小，但是准确性差，系统函数不能复制，比如now(),uuid()
+    3. mixed:混合，准确性强，日志大小适中，但是有可能发生不一致的问题
+4. expire_logs_day = 7：备份过期时间  
+<img src="../img/开启binlog.png" width="600" height="200">
+
+开启之后重启mysql，systemctl restart mysqld
+
+##### 二、查看binlog信息
+服务器：  
+mysql有自带的mysqlbinlog工具，可以用作数据的恢复和查看
+1. 查看：mysqlbinlog -v/-vv /var/lib/mysql/mysql-bin.000002 
+2. 执行：  
+    1. 从某一个节点开始恢复：mysqlbinlog --start-position = xxx --stop-position = xxx --database=xxx /var/lib/mysql/mysql-bin.000002 | mysql -uroot -p root -v  
+    2. 时刻恢复：--start-datetime = '2020-01-01 12:00:00';--end-datetime = '2020-01-01 12:30:30'
+
+mysql客户端：  
+1. reset master：删除所有的binlog
+2. show master logs：查看所有的binlog文件列表
+3. show binlog events in 'mysql-bin.000001'：查看mysql-bin.000001文件信息，不用in则是全部
+4. flush logs: 刷新binlog
+5. show variables like '%binlog%':查看binlog相关配置信息
