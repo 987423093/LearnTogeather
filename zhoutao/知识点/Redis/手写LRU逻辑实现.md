@@ -2,9 +2,6 @@
 *具体方法见MyLRU*  
 
 LUR:最近最少未被使用，利用LinkedHashMap的特性
- - put：linkedHashMap上有头尾指针，每次进行put操作，先调用hashmap的put方法，当new Node的时候调用，LinkeHashMap里的new Node方法，里面有维护头尾指针的操作
- - get：linkedHashMap默认是已按照插入顺序排序的，accessOrder参数默认是false，如果设置为true，当get时，会将当前参数放到尾部
- - insert：linkeHashMap的remove根据removeEldestEntry方法返回的布尔值来校验insert之后，如果hashmap里面存储的size数目大于自定义设置的值，则会进行删除，方法默认返回false
     
 **源码**   
 1. put：  
