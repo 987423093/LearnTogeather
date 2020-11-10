@@ -17,19 +17,19 @@
     DefaultSingletonBeanRegistry类中
     1. 一级缓存：单例池
         key是beanName，value是实例对象
-        ```java
+        ```
         /* Cache of singleton objects: bean name to bean instance. */
         private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
         ```
     2. 二级缓存：代理对象池
         key是beanName，value是代理对象
-        ```java
+        ```
         /* Cache of early singleton objects: bean name to bean instance. */
         private final Map<String, Object> earlySingletonObjects = new HashMap<>(16);
         ```
     3. 三缓存：lamda表达式
         key是beanName，value是lamda表达式，里面是原始对象+后置处理器的方法（如果有AOP的后置处理器，那么执行完生成AOP代理对象放到二级缓存）
-        ```java
+        ```
         /* Cache of singleton factories: bean name to ObjectFactory. */
         private final Map<String, ObjectFactory<?>> singletonFactories = new HashMap<>(16);
         ```
@@ -39,13 +39,13 @@
 
 1. 【AbstractBeanFactory-doGetBean方法】  
     从单例池去捞 
-    ```java
+    ```
     （251） // Eagerly check singleton cache for manually registered singletons.
     （252） Object sharedInstance = getSingleton(beanName);  // Map<>
     ```
 2. 【DefaultSingletonBeanRegistry-getSingleton方法】  
     单例池没有，并且不是正在创建的，直接返回null
-    ```java
+    ```
     (190) protected Object getSingleton(String beanName, boolean allowEarlyReference) {
             Object singletonObject = this.singletonObjects.get(beanName);
             if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
@@ -68,7 +68,7 @@
     ```
 3. 【AbstractBeanFactory-doGetBean方法】  
     如果上述bean返回null，去创建一个单例bean
-    ```java
+    ```
     // 根据Scope去创建bean
     (236) if (mbd.isSingleton()) {
             // 获取单例bean，如果获取不到则创建一个bean，并且放入单例池中
@@ -87,7 +87,7 @@
     ```
 4. 【DefaultSingletonBeanRegistry-getSingleton方法（和上面的重载，不是同一个方法）】  
     1.声明当前bean正在被创建 2.执行上面的createBean方法
-    ```java
+    ```
     (236) beforeSingletonCreation(beanName);
      ...
     (245) // singletonFactory是外面传进来的lambda表达式,执行lambda表达式
@@ -95,7 +95,7 @@
     ```
 5. 【AbstractAutowiredCapableBeanFactory】  
     1.做实例化之前的工作 2.创建原始对象 3.生成二级，三级缓存
-    ```java
+    ```
     (528) Object beanInstance = doCreateBean(beanName, mbdToUse, args);
      ...
     (573) instanceWrapper = createBeanInstance(beanName, mbd, args);
@@ -116,7 +116,7 @@
     ```
 6. 【DefaultSingletonBeanRegistry-addSingletonFactory方法】  
     在三级缓存添加包含A的原始对象的lamda表达式，依赖于是否有AOP生成代理对象还是原始对象
-    ```java
+    ```
     (152) protected void addSingletonFactory(String beanName, ObjectFactory<?> singletonFactory) {
             Assert.notNull(singletonFactory, "Singleton factory must not be null");
                 synchronized (this.singletonObjects) {
@@ -133,7 +133,7 @@
 7. 【AbstractAutowiredCapableBeanFactory-getEarlyBeanReference方法】  
     aop后置处理器执行位置,AutowiredAnnotationBeanPostProcessor继承了SmartInstantiationAwareBeanPostProcessor，并重写getEarlyBeanReference方法.  
     当前A设定为没有AOP就返回了一个普通对象
-    ```java
+    ```
     (1001) protected Object getEarlyBeanReference(String beanName, RootBeanDefinition mbd, Object bean) {
              Object exposedObject = bean;
              if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
@@ -149,12 +149,12 @@
     ```
 8. 【AbstractAutowiredCapableBeanFactory-doCreateBean】  
     去填充A里面字段的属性
-    ```java
+    ```
     (620) populateBean(beanName, mbd, instanceWrapper);
     ```
 9. 【AbstractAutowiredCapableBeanFactory-populateBean方法】  
     当前这个A的bean是byType还是byName的，如果是beanName，他里面的属性都是根据byName去寻找对应的bean，此时就找B的bean，发现Bean没有，重新从第一步开始执行
-    ```java
+    ```
     (1478) // Add property values based on autowire by name if applicable.
            if (resolvedAutowireMode == AUTOWIRE_BY_NAME) {
               autowireByName(beanName, mbd, bw, newPvs);
@@ -170,7 +170,7 @@
     B注入A成功，注入的是A的二级缓存里面的代理对象。此时缓存情况:  
     【A】：二级缓存 【B】：三级缓存  
     此时三级缓存里面有数据了，执行三级缓存里面的lamda表达式生成代理对象/普通对象放到二级缓存，并且删去三级缓存，保证三级缓存二级缓存之间互相转换，没有同时存在的时刻，加了锁，保证原子性。返回二级缓存数据，之前的else全部不执行。
-    ```java
+    ```
     （190) protected Object getSingleton(String beanName, boolean allowEarlyReference) {
              Object singletonObject = this.singletonObjects.get(beanName);
              if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
@@ -193,7 +193,7 @@
     ```
 12. 【AbstractAutowiredCapableBeanFactory-doCreateBean】  
     填充属性之后在初始化之后生成b的代理对象
-    ```java
+    ```
     (619) // 3、填充属性 @Autowired
            populateBean(beanName, mbd, instanceWrapper);
     (623) // 4、 初始化 和 BeanPostProcessor
@@ -205,7 +205,7 @@
     (1913) }
     ```
 13. 【AbstractAutoProxyCreator-postProcessAfterInitialization】  
-    ``` java
+    ``` 
     (318) public Object postProcessAfterInitialization(@Nullable Object bean, String beanName) {
             if (bean != null) {
                 Object cacheKey = getCacheKey(bean.getClass(), beanName);
@@ -222,7 +222,7 @@
     ```
 14. 【AbstractAutoProxyCreator-wrapIfNecessary】  
     判断是否还要进行aop，如果已经进行过了就不要进行aop
-    ```java
+    ```
     (381) if (specificInterceptors != DO_NOT_PROXY) {
              this.advisedBeans.put(cacheKey, Boolean.TRUE);
              // 基于bean对象和Advisor创建代理对象
@@ -238,7 +238,7 @@
     **因为B没有二级缓存，直接返回B的代理对象，然后再执行A的bean生命周期**
 15. 【AbstractAutowiredCapableBeanFactory-doCreateBean】  
     A直接从二级缓存获取bean，放到一级缓存
-    ```java
+    ```
     (638) if (earlySingletonExposure) {
             // 在解决循环依赖时，当AService的属性注入完了之后，从getSingleton中得到AService AOP之后的代理对象
             Object earlySingletonReference = getSingleton(beanName, false);  // earlySingletonObjects
