@@ -1,3 +1,4 @@
+引用：<https://www.jianshu.com/p/8f2fb61097b8>
 #### 文件处理器
 Redis内部实现是通过文件处理器，因为下面的第三个组件文件事件分派器队列的消费是单线程的，所以redis是单线程的  
 <img src="../img/Redis进程模型.png" width = 600>
