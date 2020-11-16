@@ -36,12 +36,16 @@ mysql默认不开启bin-log，需要手动开启，在/etc/my.cnf文件上添加
 
 开启之后重启mysql，systemctl restart mysqld
 
+设置binlog过期时间my.cnf设置expire_logs_days = 10，十天之后就删除  
 ##### 二、查看binlog信息
+
 服务器：  
 mysql有自带的mysqlbinlog工具，可以用作数据的恢复和查看
-1. 查看：mysqlbinlog -v/-vv /var/lib/mysql/mysql-bin.000002 
+1. 查看：mysqlbinlog -v/-vv /var/lib/mysql/mysql-bin.000002 | grep -i "drop table" -A 10 -B 10  
+忽略大小写找到drop table的行，包括前十和后十
+
 2. 执行：  
-    1. 从某一个节点开始恢复：mysqlbinlog --start-position = xxx --stop-position = xxx --database=xxx /var/lib/mysql/mysql-bin.000002 | mysql -uroot -p root -v  
+    1. 从某一个节点开始恢复：mysqlbinlog --start-position = xxx --stop-position = xxx --database=xxx /var/lib/mysql/mysql-bin.000002 | mysql -uroot -p root 
     2. 时刻恢复：--start-datetime = '2020-01-01 12:00:00';--end-datetime = '2020-01-01 12:30:30'
 
 mysql客户端：  
