@@ -204,7 +204,7 @@ Spring依赖注入就是：Spring容器协助你做了A a = new A(),B b = new B(
      ```
 3. byType：通过byType的类型注入  
     **过滤**：和上面一样  
-    **过滤之后操作**：核心：resolveDependency方法，后置处理器其实也是用的该方法去注入  
+    **过滤之后操作**：核心：resolveDependency方法，后置处理器其实也是用的该方法去注入，该方法是一个通用的方法，根据DependencyDescriptor类型的不同  
 4. 核心流程图——resolveDependency方法  
     <img src="../img/Spring依赖注入的核心方法resolveDependency.png" width="600"/>
 5. 核心流程图——findAutowireCandidates方法  
@@ -214,4 +214,243 @@ Spring依赖注入就是：Spring容器协助你做了A a = new A(),B b = new B(
 ***
 #### 总结
 整体Spring的依赖注入核心其实都在上面已经描述了，@AutowiredAnnotationBeanProcessor和@CommonAnnotationBeanProcessor的只是有基于Spring依赖注入有自己的扩展点，下篇文章直接贴源码进行叙述​。  
-**依赖注入，其实无非就是byName根据名字去找bean或者byType根据类型经过一些列的过滤找到bean，只不过Spring考虑了方方面面，帮我们做了处理**
+**依赖注入，其实无非就是byName根据名字去找bean或者byType根据类型经过一些列的过滤找到bean，只不过Spring考虑了方方面面，帮我们做了处理**  
+***
+
+
+##### 通过xml的注入与后置处理器自动注入的区别
+1. 注入方式
+    1. 通过xml的注入，可以手动注入/自动注入，都必须写setXXX方法，相当于注入点；手动注入在xml必须写property，自动注入在xml必须写autowired类型
+    2. 通过后置处理器的注入，通过@Autowired,@Resource等注解实现，在psv(PropertyValues)里面没有信息
+2. 实际实现方式——都是反射
+    1. 通过xml的注入，利用pvs，pvs里面就是需要被注入的对象，再进一步说，其实就是BeanDefinition解析出来的内容，使用反射赋值给需要被注入的实例
+      - <img src="../img/xml方式注入底层.png" width="500"/>
+    2. 通过后置处理器的注入，使用前面扫描的注入点的信息来反射赋值给需要被注入的实例
+      - <img src="../img/后置处理器注入底层.png" width="500"/>  
+    3. 都有参数或者方法的反射
+***
+##### resolveDependency方法  
+内部参数1.DependencyDescriptor:属性描述封装为对象
+1. 在byType内，传入的为AutowireByTypeDependencyDescriptor
+2. 在AutowiredAnnotationBeanPostProcessor内，第一次为DependencyDescriptor，后面缓存了为ShortcutDependencyDescriptor
+3. 在CommonAnnotationBeanPostProcessor内，为LookupDependencyDescriptor
+```java
+/**
+ * Resolve the specified dependency against the beans defined in this factory.
+ * @param descriptor the descriptor for the dependency (field/method/constructor)
+ * @param requestingBeanName the name of the bean which declares the given dependency
+ * @param autowiredBeanNames a Set that all names of autowired beans (used for
+ * resolving the given dependency) are supposed to be added to
+ * @param typeConverter the TypeConverter to use for populating arrays and collections
+ * @return the resolved object, or {@code null} if none found
+ * @throws NoSuchBeanDefinitionException if no matching bean was found
+ * @throws NoUniqueBeanDefinitionException if more than one matching bean was found
+ * @throws BeansException if dependency resolution failed for any other reason
+ * @since 2.5
+ * @see DependencyDescriptor
+ *
+ * DependencyDescriptor表示依赖，需要给这个依赖注入值，这个依赖可能是field/method/constructor
+ *
+ */
+@Nullable
+Object resolveDependency(DependencyDescriptor descriptor, @Nullable String requestingBeanName,
+		@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException;
+```
+***
+**下面的代码只是贴了一些核心实现**
+***
+##### 后置处理器：AutowiredAnnotationBeanPostProcessor
+***注意：这里只叙述和依赖注入有关的内容，该处理器在推断构造方法中也起了作用***  
+1. 寻找注入点（postProcessMergedBeanDefinition）
+```java
+private InjectionMetadata findAutowiringMetadata(String beanName, Class<?> clazz, @Nullable PropertyValues pvs) {
+		// Fall back to class name as cache key, for backwards compatibility with custom callers.
+		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());
+		// Quick check on the concurrent map first, with minimal locking.
+		InjectionMetadata metadata = this.injectionMetadataCache.get(cacheKey);
+		if (InjectionMetadata.needsRefresh(metadata, clazz)) {
+			synchronized (this.injectionMetadataCache) {
+				metadata = this.injectionMetadataCache.get(cacheKey);
+				if (InjectionMetadata.needsRefresh(metadata, clazz)) {
+					if (metadata != null) {
+						metadata.clear(pvs);
+					}
+					// 寻找当前clazz中的注入点，把所有注入点整合成为一个InjectionMetadata对象
+					metadata = buildAutowiringMetadata(clazz);
+					this.injectionMetadataCache.put(cacheKey, metadata);
+				}
+			}
+		}
+		return metadata;
+	}
+```	
+2. 注入（postProcessProperties）  
+AutowiredFieldElement继承了InjectionMetadata.InjectedElement方法，当调用inject的时候会调用AutowiredAnnotationBeanPostProcessor里面的方法，而CommonAnnotationBeanPostProcessor调用的还是原来的方法。  
+```java
+@Override
+protected void inject(Object bean, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
+    Field field = (Field) this.member;
+	Object value;
+	if (this.cached) {
+		// 当前注入点已经注入过了，有缓存了，则利用cachedFieldValue去找对应的bean
+		value = resolvedCachedArgument(beanName, this.cachedFieldValue);
+	}
+	else {
+		//  Spring在真正查找属性对应的对象之前, 会先将该属性的描述封装成一个DependencyDescriptor, 里面保存了Filed、是否强制需要即required, 以及属性所在的类(即Field所在的类Class对象)
+		DependencyDescriptor desc = new DependencyDescriptor(field, this.required);
+		desc.setContainingClass(bean.getClass());
+		Set<String> autowiredBeanNames = new LinkedHashSet<>(1);
+		Assert.state(beanFactory != null, "No BeanFactory available");
+		TypeConverter typeConverter = beanFactory.getTypeConverter();
+		try {
+			// 根据field去寻找合适的bean
+			value = beanFactory.resolveDependency(desc, beanName, autowiredBeanNames, typeConverter);
+		}
+		catch (BeansException ex) {
+			throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(field), ex);
+		}
+		synchronized (this) {
+			if (!this.cached) {
+				if (value != null || this.required) {
+					this.cachedFieldValue = desc;
+					// 注册当前bean依赖了哪些其他的bean的name
+					registerDependentBeans(beanName, autowiredBeanNames);
+					if (autowiredBeanNames.size() == 1) {
+						String autowiredBeanName = autowiredBeanNames.iterator().next();
+						if (beanFactory.containsBean(autowiredBeanName) &&
+								beanFactory.isTypeMatch(autowiredBeanName, field.getType())) {
+							// 对得到的对象进行缓存
+							this.cachedFieldValue = new ShortcutDependencyDescriptor(
+									desc, autowiredBeanName, field.getType());
+						}
+					}
+				}
+				else {
+					this.cachedFieldValue = null;
+				}
+				this.cached = true;
+			}
+		}
+	}
+	// 反射设值
+	if (value != null) {
+		ReflectionUtils.makeAccessible(field);
+		//这里通过反射设置beanWrapper里面的wrappedObject对象
+		field.set(bean, value);
+	}
+}
+```
+3. 缓存（ShortcutDependencyDescriptor）
+4. 总结  
+    发现没，其实后置处理器区别于byType就做了两件事情，
+    1. 因为bd里面没有set方法，导致没有psv里面的属性，所以只能在注入点进行反射赋值
+    2. 做了一层缓存，如果之前注入过，直接去BeanFactory找，不用再一层层去过滤找了
+    3. resolveDependency类是AbstractAutowiredCapableFactoryBean的方法，该后置处理器的核心方法还是该方法，包括一些lazy注解也在该方法内部处理
+***
+##### 后置处理器：CommonAnnotationBeanPostProcessor
+
+1. 寻找注入点
+```java
+private InjectionMetadata findResourceMetadata(String beanName, final Class<?> clazz, @Nullable PropertyValues pvs) {
+		// Fall back to class name as cache key, for backwards compatibility with custom callers.
+		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());
+		// Quick check on the concurrent map first, with minimal locking.
+		InjectionMetadata metadata = this.injectionMetadataCache.get(cacheKey);
+		if (InjectionMetadata.needsRefresh(metadata, clazz)) {
+			synchronized (this.injectionMetadataCache) {
+				metadata = this.injectionMetadataCache.get(cacheKey);
+				if (InjectionMetadata.needsRefresh(metadata, clazz)) {
+					if (metadata != null) {
+						metadata.clear(pvs);
+					}
+					metadata = buildResourceMetadata(clazz);
+					this.injectionMetadataCache.put(cacheKey, metadata);
+				}
+			}
+		}
+		return metadata;
+}
+```
+2. 注入  
+调用的是本身的inject方法
+```java
+/**
+ * Either this or {@link #getResourceToInject} needs to be overridden.
+ */
+protected void inject(Object target, @Nullable String requestingBeanName, @Nullable PropertyValues pvs)
+		throws Throwable {
+
+	// 如果是属性，则反射赋值
+	if (this.isField) {
+		Field field = (Field) this.member;
+		ReflectionUtils.makeAccessible(field);
+		field.set(target, getResourceToInject(target, requestingBeanName));
+	}
+	else {
+
+		// 检查当前的属性是不是通过by_name和by_type来注入的
+		if (checkPropertySkipping(pvs)) {
+			return;
+		}
+		try {
+			// 如果是方法，则通过方法赋值
+			// 这里的方法并不是一定要setXX方法
+			Method method = (Method) this.member;
+			ReflectionUtils.makeAccessible(method);
+			method.invoke(target, getResourceToInject(target, requestingBeanName));
+		}
+		catch (InvocationTargetException ex) {
+			throw ex.getTargetException();
+		}
+	}
+}
+```
+因为没有调用resolveDependency方法，所以@lazy注解需要后置处理器自己实现
+```java
+@Override
+	protected Object getResourceToInject(Object target, @Nullable String requestingBeanName) {
+		return (this.lazyLookup ? buildLazyResourceProxy(this, requestingBeanName) :
+				getResource(this, requestingBeanName));
+	}
+```
+3. 核心判断逻辑
+```java
+if (this.fallbackToDefaultTypeMatch && element.isDefaultName && !factory.containsBean(name)) {
+	autowiredBeanNames = new LinkedHashSet<>();
+	resource = beanFactory.resolveDependency(descriptor, requestingBeanName, autowiredBeanNames, null);
+	if (resource == null) {
+		throw new NoSuchBeanDefinitionException(element.getLookupType(), "No resolvable resource object");
+	}
+}
+else {
+	resource = beanFactory.resolveBeanByName(name, descriptor);
+	autowiredBeanNames = Collections.singleton(name);
+}
+```
+```java
+/**
+ * Build a DependencyDescriptor for the underlying field/method.
+ */
+public final DependencyDescriptor getDependencyDescriptor() {
+	if (this.isField) {
+		return new LookupDependencyDescriptor((Field) this.member, this.lookupType);
+	}
+	else {
+		return new LookupDependencyDescriptor((Method) this.member, this.lookupType);
+	}
+}
+```
+1.首先判断@Resource(name = "")命名了和默认名称不一样的别名并且BeanFactory里面没有该beanName，就又去走我们的核心类resolveDependency一层层筛选
+2.如果没有找到，就抛出异常  
+3.如果是默认名称或者BeanFactory里面已经有该beanName，通过byName的方式去getBean
+
+4. 总结  
+    1. @Resource注解就是根据解析出来的名称去寻找是否有对应的bean，做了@Lazy注解以及本身功能的兼容，其实还是用的AbstractAutowiredBeanFactory的resolveBeanByName的功能
+    2. @Resource如果手动指定了与名字的name，没有找到抛异常，找到了就返回
+
+***
+##### @Autowired和@Resource的对比
+1. @Autowired主要的实现：resolveDependency方法,先byType，如果经过一系列的筛选，发现结果集还是有多个再byName
+2. @Resource主要实现：resolveBeanByName方法，byName，如果手动配置了名字没找到抛异常，没有配置没找到就是空
+***
+**开发人员为了让我们用起来方便，幕后真的做了很多工作，看完文章请不要再说我只会@Autowired了~**
