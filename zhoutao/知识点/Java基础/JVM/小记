@@ -1,0 +1,5 @@
+1. 类加载是懒加载的
+2. final 在初始化阶段直接赋值
+3. KlassInstance Java对象，在方法区；KlassInstanceMinor 类对象，在堆区
+4. static 是顺序执行的
+5. 子类继承父类，静态方法：先执行父类，后执行子类
