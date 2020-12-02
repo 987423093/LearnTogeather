@@ -251,3 +251,8 @@
                 ...
     (667)   
     ```
+    
+
+为什么要第15的代码？
+如果提前进行了AOP，就不进行AOP，earlySingletonExposure为true，将二级缓存的代理对象赋值给exposedObject
+如果没有循环依赖，exposedObject为false，直接就是代理对象

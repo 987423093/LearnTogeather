@@ -98,3 +98,5 @@ system > const > eq_ref > ref > fulltext > ref_or_null > unique_subquery > index
  5. 不要对索引列在where条件中使用!=运算，拆分成> or <
  6. select .. from .. where .. group by .. having .. order by .. limit .. 能在前面拦截就在前面拦截
  7. 能直接定位到>= 就不要用> 
+***
+1. 查询条件的顺序无所谓，关键是索引的顺序，尽量把范围查询的放到最后面

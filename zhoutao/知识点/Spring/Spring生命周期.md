@@ -1,0 +1,1 @@
+<img src="../img/Bean的生命周期流程.png"/>

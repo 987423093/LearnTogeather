@@ -54,3 +54,4 @@ mysql客户端：
 3. show binlog events in 'mysql-bin.000001'：查看mysql-bin.000001文件信息，不用in则是全部
 4. flush logs: 刷新binlog
 5. show variables like '%binlog%':查看binlog相关配置信息
+6. show variables like 'log_bin':查看binlog是否开启
