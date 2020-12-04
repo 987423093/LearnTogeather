@@ -76,7 +76,7 @@ public class MyAdvisor implements PointcutAdvisor {
 2. 具体实现：
     1. EnableAspectJAutoProxy注解：使用@import注入AnnotationAwareAspectJAutoProxyCreator，后续单开SpringBoot自动装配篇
     2. 注入AnnotationAwareAspectJAutoProxyCreator的祖类AbstractAutoProxyCreator实现SmartInstantiationAwareBeanPostProcessor
-    3. SmartInstantiationAwareBeanPostProcessor继承InstantiationAwareBeanPostProcessor，InstantiationAwareBeanPostProcessor
+    3. SmartInstantiationAwareBeanPostProcessor继承InstantiationAwareBeanPostProcessor
     4. AbstractAutoProxyCreator实现了postProcessAfterInitialization方法，在初始化之后做操作扫描所有符合条件的advisor，包装成为代理对象
     5. 核心方法wrapIfNecessary
     
@@ -132,9 +132,8 @@ public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
 ***
 #### 三、核心代理代码解析
 1. wrapIfNecessary
-
     作用：
-     1. 收集所有需要被代理的类，advisedBeans（beanName-true/false）
+     1. 收集所有需要被代理的类的缓存，advisedBeans（beanName-true/false）
      2. 收集当前bean匹配的所有advisor并且生成对应代理对象，proxyTypes（beanName-proxy对象）
 ```java
 public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
@@ -210,7 +209,40 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	}
 }
 ```
-2. JdkDynamicAopProxy的invoke/CglibAopProxy的intercept 
+2. shouldSkip
+    作用：
+    1. 创建所有@Advisor修饰的bean
+    2. 判断当前bean是否需要跳过代理
+```java
+public class AspectJAwareAdvisorAutoProxyCreator extends AbstractAdvisorAutoProxyCreator {
+	@Override
+	protected boolean shouldSkip(Class<?> beanClass, String beanName) {
+		// TODO: Consider optimization by caching the list of the aspect names
+		// 得到类型为Advisor的bean，以及被@Aspect注解修饰了的类中所定义的@Before等
+		List<Advisor> candidateAdvisors = findCandidateAdvisors();
+
+		// 如果当前beanName是AspectJPointcutAdvisor，那么则跳过
+		for (Advisor advisor : candidateAdvisors) {
+			if (advisor instanceof AspectJPointcutAdvisor &&
+					((AspectJPointcutAdvisor) advisor).getAspectName().equals(beanName)) {
+				return true;
+			}
+		}
+		return super.shouldSkip(beanClass, beanName);
+	}
+}
+
+// 获取Advisor类型的bean
+public class BeanFactoryAdvisorRetrievalHelper {
+    public List<Advisor> findAdvisorBeans() {
+        // ...
+        advisors.add(this.beanFactory.getBean(name, Advisor.class));
+        // ...
+    }
+}
+```
+
+3. JdkDynamicAopProxy的invoke/CglibAopProxy的intercept 
 ***
 #### 四、Java的动态代理
 
@@ -299,4 +331,10 @@ public class BServiceProxy implements MethodInterceptor {
 ##### 总结
 1. SpringAOP自动代理实现原理：引入AnnotationAwareAspectJAutoProxyCreator，可以使用@Aspect注明是切面类，是AbstractAutoProxyCreator的子类，在初始化之后的后置处理器内部生成代理对象
 2. 什么时候使用JDK动态代理/CGLIB动态代理：当一个bean的目标类是接口/Proxy时，使用JDK动态代理，否则使用CGLIB动态代理
-3. SpringAOP在Spring生命周期的什么阶段：1.实例化与实例化之后（指的是实例化后的后置处理器方法）之间，为了解决循环依赖，提早进行AOP 2.初始化之后，使用earlyProxyReferences（key为beanName，value为原始对象）作为缓存判断是否进行过AOP，如果没有进行aop，进行aop后返回，如果提早进行过aop，返回原始对象
+3. SpringAOP在Spring生命周期的什么阶段：  
+    1. 实例化之前，（1）校验当前bean是否要被切，在AspectJAwareAdvisorAutoProxyCreator的shouldSkip内，懒加载所有的切面信息，（2）如果自己实现了customTargetSourceCreators就提前产生代理对象，返回
+    2. 实例化与实例化之后（指的是实例化后的后置处理器方法）之间，为了解决循环依赖，提早进行AOP 
+    3. 初始化之后，使用earlyProxyReferences（key为beanName，value为原始对象）作为缓存判断是否进行过AOP，如果没有进行aop，进行aop后返回，如果提早进行过aop，返回原始对象 
+4. 一个类能被多个切面切吗？ 可以
+5. 同一个切面顺序：around before -> before -> invoke -> around after -> after
+6. @Order 可以调整切面顺序
