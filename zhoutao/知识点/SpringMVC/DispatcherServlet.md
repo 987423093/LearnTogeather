@@ -1,0 +1,9 @@
+1. 请求进来先到前端控制器，DispatcherServlet
+2. 前端控制器调用处理器映射器HandlerMapping查找对应的处理器Handler
+3. 处理器映射器返回给前端控制器Handler
+4. 前端控制器调用处理器适配器HandlerAdaptor处理Handler
+5. Handler执行完毕返回给处理器适配器ModelAndView
+6. 处理器适配器将ModelAndView返回给前端控制器
+7. 前端控制器请求视图解析器进行解析
+8. 视图解析器返回给前端控制器view
+9. 前端控制器返回响应

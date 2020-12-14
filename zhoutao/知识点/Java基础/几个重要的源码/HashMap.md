@@ -3,7 +3,7 @@
 减少hash冲突，-1之后就是111111
 
 ##### jdk1.7环形链表产生原因：jdk8之前都是使用头插法，当多线程情况下在transfer方法内
-
+假设3节点上1->2，1对应地址为@1，2对应地址为@2，3对应地址为@300  
 推演：
 1. 线程A执行到【1】，此时：e=@1，next=e.next=@2
 2. 线程B执行e=@1,next=e.next=@2,i=3,e.next=newTable[3]=@300,newTable[3]=@1,e=next=@2;此时e=@2，newTable[3]=@1,@1->@300；
@@ -11,9 +11,10 @@
 3. 当前线程A状态：e=@1,next=e.next=@2，当时本应该是@300的下一个节点变成了next=@2
 4. 线程A继续执行，e.next=newTable[3]=@2(拿到的已经是线程B修改的值),newTable[3]=e=@1,e=next=@2;此时e=@2,newTable[3]=@1,@1->@2
 5. 当前节点状态：@1->@2,@2->@1，线程A继续执行@2,会死循环
+
 总结：
-    1. 因为是头插法，线程B完成了其他节点的重hash，之前为1->2的最终形成2->1的线路；线程A开始执行，e.next=newTable[i]=2，可能会导致和线程B最终产生的节点关系形成一个环
-    2. 假设线程A正好停在【1】，next=e.next,保留了之前的值1，会导致1->2->1的死循环；如果没有停在【1】，也形成了环路，当hash值正好为3的时候，会陷入1->2->1死循环
+1. 因为是头插法，线程B完成了其他节点的重hash，之前为1->2的最终形成2->1的线路；线程A开始执行，e.next=newTable[i]=2，可能会导致和线程B最终产生的节点关系形成一个环
+2. 假设线程A正好停在【1】，next=e.next,保留了之前的值1，会导致1->2->1的死循环；如果没有停在【1】，也形成了环路，当hash值正好为3的时候，会陷入1->2->1死循环
 ```
 void transfer(Entry[] newTable) {
     Entry[] src = table;
@@ -120,8 +121,16 @@ final Node<K,V> getNode(int hash, Object key) {
 }
 ```
 
+##### HashMap和Hashtable的区别
+1. HashMap的key，value可以为空，Hashtable都不能为空
+2. HashMap是线程不安全的，Hashtable是线程安全的
+3. HashMap继承AbstractMap，Hashtable继承Dictionary
+4. HashMap使用key的hash算法，Hashtable使用固定的hash算法，(hash & 0x7FFFFFFF) % tab.length
+5. HashMap使用Iterator，有fail-fast机制，Hashtable使用enumerator，没有
+6. HashMap默认容量16，扩容两倍，Hashtable默认容量11，扩容2倍+1
+
 ##### 其他
 1. 默认大小：16，默认负载因子：0.75
-2. 扩容两倍
+2. 扩容1.5倍
 3. 红黑树节点转换条件：1.容量达到64 2.链表达到阈值8
 4. <img src="../../img/HashMap结构.png" width="600" height="300" />  
