@@ -51,7 +51,7 @@ public abstract class MyBatisTest {
 
 3. 解答疑惑
 
-我们目前项目中无需配置这个mybatis-config.xml,是因为mybatis-spring这个包里面构建了SqlSessionFactory，这个类的build方法支持传入一个Configuration，是被多重载的方法。其实IO流最后还是调用到了传入Configuration的方法
+我们目前项 目中无需配置这个mybatis-config.xml,是因为mybatis-spring这个包里面构建了SqlSessionFactory，这个类的build方法支持传入一个Configuration，是被多重载的方法。其实IO流最后还是调用到了传入Configuration的方法
 ```
 public SqlSessionFactory build(Reader reader, String environment, Properties properties) {
    try {

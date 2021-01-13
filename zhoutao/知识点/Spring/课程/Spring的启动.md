@@ -1,10 +1,14 @@
-### 手写一个Spring
+### 一、Spring框架
 
+#### Spring整体流程
+<img src="../../img/spring/Spring整体流程图.png" width="600" height="300">
 
-### Application和BeanFactory的区别
+#### 手写一个Spring
+[simple-spring源码](https://github.com/987423093/SimpleSpring.git)  
 
-#### 目录结构
-1. AnnotationApplication：资源加载，国际化，监听器，简单的Bean创建
+### 二、Application和BeanFactory的区别
+
+#### AnnotationApplication：资源加载，国际化，监听器，简单的Bean创建
 
 <img src="../../img/spring/Application.png" width="600" height="200">  
 
@@ -20,7 +24,7 @@
 10. AnnotationConfigRegistry：可以单独注册某个为类为BeanDefinition（可以处理该类上的@Configuration注解，已经可以处理@Bean注解），同时可以扫描
 11. AnnotationConfigApplicationContext：继承了GenericApplicationContext，实现了AnnotationConfigRegistry接口，拥有了以上所有的功能
 
-2. DefaultListableBeanFactory：强大的Bean创建工厂
+#### DefaultListableBeanFactory：强大的Bean创建工厂
 
 <img src="../../img/spring/BeanFactory.png" width="600" height="200">  
 
@@ -40,7 +44,7 @@
 15. AbstractAutowireCapableBeanFactory：继承了AbstractBeanFactory，实现了AutowireCapableBeanFactory，拥有了自动装配的功能
 16. DefaultListableBeanFactory：继承了AbstractAutowireCapableBeanFactory，实现了ConfigurableListableBeanFactory接口和BeanDefinitionRegistry接口，所以DefaultListableBeanFactory的功能很强大
 
-### 手撕Spring——项目启动流程
+### 三、手撕Spring——项目启动流程
 
 #### 一、AnnotationConfigApplicationContext带参构造方法
 ```
