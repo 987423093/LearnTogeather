@@ -87,3 +87,7 @@ epoll
 4. 如果有socket有数据（就绪队列里面有数据），中断返回，否则阻塞
 5. 此时进程A被唤醒，直接去epollevent的就绪队列上查看有哪些socket，放到工作队列中去执行
 
+操作系统epoll
+epoll_create:创建一个epollevent对象
+epoll_ctl:绑定
+epoll_wait:没有信息就阻塞

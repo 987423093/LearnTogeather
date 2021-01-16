@@ -40,6 +40,7 @@ public class ConsitentHash {
 
     private String getServerNode(String clientIp) {
 
+        // 返回大于clientIp.hashCode的集合
         SortedMap<Integer, String> integerStringSortedMap = hashMapping.tailMap(clientIp.hashCode());
         if (integerStringSortedMap.isEmpty()) {
             return hashMapping.get(hashMapping.firstKey());
