@@ -57,8 +57,8 @@ public class MyBuilder {
         return new Builder();
     }
 
-    public MyBuilder.Builder toBuilder() {
-        return this.Builder;
+    public static MyBuilder.Builder toBuilder() {
+        return new Builder();
     }
 
     /**
